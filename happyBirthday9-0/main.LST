@@ -1,0 +1,357 @@
+C51 COMPILER V9.01   MAIN                                                                  04/12/2024 17:51:43 PAGE 1   
+
+
+C51 COMPILER V9.01, COMPILATION OF MODULE MAIN
+OBJECT MODULE PLACED IN main.OBJ
+COMPILER INVOKED BY: C:\Keil\C51\BIN\C51.EXE main.c BROWSE DEBUG OBJECTEXTEND
+
+line level    source
+
+   1          /**************************************************************************************
+   2          深圳市普中科技有限公司（PRECHIN 普中）
+   3          技术支持：www.prechin.net
+   4          PRECHIN
+   5           普中
+   6          
+   7          实验名称：LED点阵实验(显示数字)
+   8          接线说明：      
+   9          实验现象：下载程序后，8*8LED点阵显示数字0
+  10          注意事项：LED点阵旁的J24黄色跳线帽短接到GND一端                                                                                                                                                           
+  11          ***************************************************************************************/
+  12          #include "reg51.h"
+  13          #include <INTRINS.H>
+  14          
+  15          typedef unsigned int u16;       //对系统默认数据类型进行重定义
+  16          typedef unsigned char u8;
+  17          
+  18          //定义74HC595控制管脚
+  19          sbit SRCLK=P3^6;        //移位寄存器时钟输入
+  20          sbit RCLK=P3^5;         //存储寄存器时钟输入
+  21          sbit SER=P3^4;          //串行数据输入
+  22          
+  23          sbit k1 = P3^1; //独立按键
+  24          
+  25          #define LEDDZ_COL_PORT  P0      //点阵列控制端口
+  26          
+  27          
+  28          u8 gled_row0[8]={0x00,0x7C,0x82,0x82,0x82,0x7C,0x00,0x00};//LED点阵显示数字0的行数据
+  29          
+  30          u8 gled_row1[8]={0x00,0x00,0x00,0x40,0xFF,0x00,0x00,0x00};//LED点阵显示数字1的行数据
+  31          
+  32          u8 gled_row2[8]={0x00,0x41,0x83,0x85,0x89,0x71,0x00,0x00};//LED点阵显示数字2的行数据
+  33          
+  34          u8 gled_row3[8]={0x00,0x42,0x89,0x89,0x89,0x76,0x00,0x00};//LED点阵显示数字3的行数据
+  35          
+  36          u8 gled_row4[8]={0x00,0x70,0x08,0x08,0x08,0x7E,0x00,0x00};//LED点阵显示数字4的行数据
+  37          
+  38          u8 gled_row5[8]={0x00,0x32,0x49,0x49,0x49,0x46,0x00,0x00};//LED点阵显示数字5的行数据
+  39          
+  40          u8 gled_row6[8]={0x00,0x7E,0x89,0x89,0x89,0x46,0x00,0x00};//LED点阵显示数字6的行数据
+  41          
+  42          u8 gled_row7[8]={0x00,0x40,0x40,0x40,0x40,0x7F,0x00,0x00};//LED点阵显示数字7的行数据
+  43          
+  44          u8 gled_row8[8]={0x00,0x76,0x89,0x89,0x89,0x76,0x00,0x00};//LED点阵显示数字8的行数据
+  45          
+  46          u8 gled_row9[8]={0x00,0x72,0x89,0x89,0x89,0x7E,0x00,0x00};//LED点阵显示数字9的行数据
+  47          
+  48          u8 gled_col[8]={0x7f,0xbf,0xdf,0xef,0xf7,0xfb,0xfd,0xfe};//LED点阵列数据
+  49          
+  50          u16 time = 0;
+  51          
+  52          
+  53          
+  54                                                   /***********生日快乐**************************************************************************/
+  55          void Delay(unsigned char xms)           //@11.0592MHz
+C51 COMPILER V9.01   MAIN                                                                  04/12/2024 17:51:43 PAGE 2   
+
+  56          {
+  57   1              unsigned char i, j;
+  58   1              while(xms--)
+  59   1              {
+  60   2                      _nop_();
+  61   2                      i = 2;
+  62   2                      j = 199;
+  63   2                      do
+  64   2                      {
+  65   3                              while (--j);
+  66   3                      } while (--i);
+  67   2              }
+  68   1      }
+  69          
+  70          
+  71          void MetrixLED_Init()
+  72          {
+  73   1              RCLK=0;
+  74   1              SRCLK=0;
+  75   1      }
+  76          
+  77          //74HC595输出要显示哪一行 Row:0~7
+  78          void _74HC595_WriteRow(unsigned char Row)
+  79          {
+  80   1              unsigned char i = 0;
+  81   1              Row=0x80>>Row;
+  82   1              for(i=0;i<8;i++)
+  83   1              {
+  84   2                      SER=Row&(0x80>>i);
+  85   2                      SRCLK=1;
+  86   2                      SRCLK=0;
+  87   2              }
+  88   1              RCLK=1;
+  89   1              RCLK=0;
+  90   1      }
+  91          
+  92          //Data: 1亮0灭
+  93          void MertixLED_ShowRow(unsigned char Row,Data)
+  94          {
+  95   1              _74HC595_WriteRow(Row);
+  96   1              P0=~Data;
+  97   1              Delay(2);
+  98   1              _74HC595_WriteRow(0xff);
+  99   1      }
+ 100          
+ 101          
+ 102          unsigned char code Animation[]={
+ 103              0x02,0x1C,0x28,0x48,0x7E,0x08,0x2C,0x5A,
+ 104                  0x44,0x44,0x4F,0xE5,0x4F,0x44,0x4A,0x51,
+ 105              0x00,0x7C,0x44,0x44,0x7C,0x44,0x44,0x7C,  
+ 106                  0x14,0x24,0x7F,0x84,0x04,0x3F,0x04,0x3F
+ 107          };
+ 108          
+ 109          /***********生日快乐**************************************************************************************
+             -******/
+ 110            
+ 111          
+ 112          
+ 113          /*******************************************************************************
+ 114          * 函 数 名       : delay_10us
+ 115          * 函数功能               : 延时函数，ten_us=1时，大约延时10us
+ 116          * 输    入       : ten_us
+C51 COMPILER V9.01   MAIN                                                                  04/12/2024 17:51:43 PAGE 3   
+
+ 117          * 输    出       : 无
+ 118          *******************************************************************************/
+ 119          void delay_10us(u16 ten_us)
+ 120          {
+ 121   1              while(ten_us--);        
+ 122   1      }
+ 123          
+ 124          /*******************************************************************************
+ 125          * 函 数 名         : hc595_write_data(u8 dat)
+ 126          * 函数功能                 : 向74HC595写入一个字节的数据
+ 127          * 输    入         : dat：数据
+ 128          * 输    出         : 无
+ 129          *******************************************************************************/
+ 130          void hc595_write_data(u8 dat)
+ 131          {
+ 132   1              u8 i=0;
+ 133   1              
+ 134   1              for(i=0;i<8;i++)//循环8次即可将一个字节写入寄存器中
+ 135   1              {
+ 136   2                      SER=dat>>7;//优先传输一个字节中的高位
+ 137   2                      dat<<=1;//将低位移动到高位
+ 138   2                      SRCLK=0;
+ 139   2                      delay_10us(1);
+ 140   2                      SRCLK=1;
+ 141   2                      delay_10us(1);//移位寄存器时钟上升沿将端口数据送入寄存器中      
+ 142   2              }
+ 143   1              RCLK=1;
+ 144   1              delay_10us(1);
+ 145   1              RCLK=0;//存储寄存器时钟上升沿将前面写入到寄存器的数据输出       
+ 146   1      }
+ 147          
+ 148          
+ 149          /*******************************************************************************
+ 150          * 函 数 名       : main
+ 151          * 函数功能               : 主函数
+ 152          * 输    入       : 无
+ 153          * 输    出       : 无
+ 154          *******************************************************************************/
+ 155          void main()
+ 156          {       
+ 157   1      
+ 158   1        
+ 159   1      unsigned char i,offset=24,count=0;
+ 160   1              MetrixLED_Init();
+ 161   1      
+ 162   1          while(1)
+ 163   1              {
+ 164   2                      for(i=0;i<8;i++)
+ 165   2                      {
+ 166   3                              MertixLED_ShowRow(i,Animation[i+offset]);
+ 167   3                      }
+ 168   2                      count++;
+ 169   2                      if(count>5)
+ 170   2                      {
+ 171   3                              count=0;
+ 172   3      
+ 173   3                              offset--;
+ 174   3                              if(offset < 1)  //向下移动
+ 175   3                                      offset=24;
+ 176   3                      /*      offset++;
+ 177   3                              if(offset>32)  //向上移动
+ 178   3                                      offset=0;*/
+C51 COMPILER V9.01   MAIN                                                                  04/12/2024 17:51:43 PAGE 4   
+
+ 179   3                              
+ 180   3                      }
+ 181   2                      if(k1 == 0)
+ 182   2                  {
+ 183   3                                        u8 i=0;  
+ 184   3      
+ 185   3              while(1)
+ 186   3              {                       
+ 187   4              
+ 188   4                  time = 50;
+ 189   4                      while(time) {
+ 190   5                         time--;
+ 191   5                         for(i=0;i<8;i++)//循环8次扫描8行、列
+ 192   5                         {
+ 193   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 194   6                              hc595_write_data(gled_row9[i]);//传送行选数据
+ 195   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 196   6                              hc595_write_data(0x00);//消影   
+ 197   6                         }            
+ 198   5                  }
+ 199   4      
+ 200   4                  time = 50;
+ 201   4                      while(time) {
+ 202   5      
+ 203   5                      time--;
+ 204   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 205   5                      {
+ 206   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 207   6                              hc595_write_data(gled_row8[i]);//传送行选数据
+ 208   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 209   6                              hc595_write_data(0x00);//消影   
+ 210   6                      }
+ 211   5                      }
+ 212   4      
+ 213   4      
+ 214   4                  time = 50;
+ 215   4                      while(time) {
+ 216   5                              time--;
+ 217   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 218   5                      {
+ 219   6                      
+ 220   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 221   6                              hc595_write_data(gled_row7[i]);//传送行选数据
+ 222   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 223   6                              hc595_write_data(0x00);//消影   
+ 224   6                      }
+ 225   5                      }
+ 226   4      
+ 227   4                       time = 50;
+ 228   4                      while(time) {
+ 229   5                              time--;
+ 230   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 231   5                      {
+ 232   6              
+ 233   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 234   6                              hc595_write_data(gled_row6[i]);//传送行选数据
+ 235   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 236   6                              hc595_write_data(0x00);//消影   
+ 237   6                      }
+ 238   5                      }
+ 239   4      
+ 240   4                       time = 50;
+C51 COMPILER V9.01   MAIN                                                                  04/12/2024 17:51:43 PAGE 5   
+
+ 241   4                      while(time) {
+ 242   5                              time--;
+ 243   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 244   5                      {
+ 245   6              
+ 246   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 247   6                              hc595_write_data(gled_row5[i]);//传送行选数据
+ 248   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 249   6                              hc595_write_data(0x00);//消影   
+ 250   6                      }
+ 251   5                      }
+ 252   4      
+ 253   4                       time = 50;
+ 254   4                      while(time) {
+ 255   5                              time--;
+ 256   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 257   5                      {
+ 258   6              
+ 259   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 260   6                              hc595_write_data(gled_row4[i]);//传送行选数据
+ 261   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 262   6                              hc595_write_data(0x00);//消影   
+ 263   6                      }
+ 264   5                      }
+ 265   4      
+ 266   4                       time = 50;
+ 267   4                      while(time) {
+ 268   5                              time--;
+ 269   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 270   5                      {
+ 271   6              
+ 272   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 273   6                              hc595_write_data(gled_row3[i]);//传送行选数据
+ 274   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 275   6                              hc595_write_data(0x00);//消影   
+ 276   6                      }
+ 277   5                      }
+ 278   4      
+ 279   4                       time = 50;
+ 280   4                      while(time) {
+ 281   5                              time--;
+ 282   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 283   5                      {
+ 284   6                      
+ 285   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 286   6                              hc595_write_data(gled_row2[i]);//传送行选数据
+ 287   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 288   6                              hc595_write_data(0x00);//消影   
+ 289   6                      }
+ 290   5                      }
+ 291   4      
+ 292   4                       time = 50;
+ 293   4                      while(time) {
+ 294   5                              time--;
+ 295   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 296   5                      {
+ 297   6                      
+ 298   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 299   6                              hc595_write_data(gled_row1[i]);//传送行选数据
+ 300   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 301   6                              hc595_write_data(0x00);//消影   
+ 302   6                      }
+C51 COMPILER V9.01   MAIN                                                                  04/12/2024 17:51:43 PAGE 6   
+
+ 303   5                      }
+ 304   4      
+ 305   4                       time = 50;
+ 306   4                      while(time) {
+ 307   5                              time--;
+ 308   5                      for(i=0;i<8;i++)//循环8次扫描8行、列
+ 309   5                      {
+ 310   6                      
+ 311   6                              LEDDZ_COL_PORT=gled_col[i];//传送列选数据
+ 312   6                              hc595_write_data(gled_row0[i]);//传送行选数据
+ 313   6                              delay_10us(100);//延时一段时间，等待显示稳定
+ 314   6                              hc595_write_data(0x00);//消影   
+ 315   6                      }
+ 316   5                      }
+ 317   4      
+ 318   4      
+ 319   4                                                      
+ 320   4              }       
+ 321   3              }       
+ 322   2                  }
+ 323   1              }
+
+
+MODULE INFORMATION:   STATIC OVERLAYABLE
+   CODE SIZE        =    704    ----
+   CONSTANT SIZE    =     32    ----
+   XDATA SIZE       =   ----    ----
+   PDATA SIZE       =   ----    ----
+   DATA SIZE        =     90       4
+   IDATA SIZE       =   ----    ----
+   BIT SIZE         =   ----    ----
+END OF MODULE INFORMATION.
+
+
+C51 COMPILATION COMPLETE.  0 WARNING(S),  0 ERROR(S)
